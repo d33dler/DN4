@@ -3769,3 +3769,27 @@ Test-(29): [800/1000]	Time 0.101 (0.179)	Loss 0.834 (1.204)	Prec@1 66.667 (52.28
 Test-(29): [900/1000]	Time 0.329 (0.179)	Loss 1.326 (1.205)	Prec@1 44.000 (52.246)
  * Prec@1 52.381 Best_prec1 50.575
 
+Namespace(dataset_dir='dataset/miniImageNet', data_name='miniImageNet', mode='train', outf='./results/DN4_miniImageNet_Conv64F_5Way_1Shot_K3', resume='', basemodel='Conv64F', workers=8, imageSize=84, episodeSize=1, testepisodeSize=1, epochs=1, episode_train_num=10000, episode_val_num=1000, episode_test_num=1000, way_num=5, shot_num=1, query_num=15, neighbor_k=3, lr=0.005, beta1=0.5, cuda=True, ngpu=1, nc=3, clamp_lower=-0.01, clamp_upper=0.01, print_freq=100)
+FourLayer_64F(
+  (features): Sequential(
+    (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): LeakyReLU(negative_slope=0.2, inplace=True)
+    (3): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+    (4): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (5): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (6): LeakyReLU(negative_slope=0.2, inplace=True)
+    (7): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+    (8): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (9): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (10): LeakyReLU(negative_slope=0.2, inplace=True)
+    (11): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (12): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (13): LeakyReLU(negative_slope=0.2, inplace=True)
+  )
+  (imgtoclass): ImgtoClass_Metric()
+)
+===================================== Epoch 0 =====================================
+Trainset: 10000
+Valset: 1000
+Testset: 1000

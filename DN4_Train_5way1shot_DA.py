@@ -142,7 +142,7 @@ def train(train_loader, model, criterion, optimizer, epoch_index, F_txt):
 		batch_time.update(time.time() - end)
 		end = time.time()
 
-
+		print(f"Run episode{ episode_index}")
 		#============== print the intermediate results ==============#
 		if episode_index % opt.print_freq == 0 and episode_index != 0:
 
