@@ -184,7 +184,7 @@ class FourLayer_64F(nn.Module):
 			support_set_sam = self.features(input2[i])
 			B, C, h, w = support_set_sam.size()
 			support_set_sam = support_set_sam.permute(1, 0, 2, 3)
-			support_set_sam = support_set_sam.contiguous().view(C, -1)
+			support_set_sam = support_set_sam.contiguous().reshape((C, -1))
 			S.append(support_set_sam)
 
 		x = self.imgtoclass(q, S) # get Batch*num_classes
@@ -209,7 +209,7 @@ class ImgtoClass_Metric(nn.Module):
 
 		for i in range(B):
 			query_sam = input1[i]
-			query_sam = query_sam.view(C, -1)
+			query_sam = query_sam.reshape((C, -1))
 			query_sam = torch.transpose(query_sam, 0, 1)
 			query_sam_norm = torch.norm(query_sam, 2, 1, True)   
 			query_sam = query_sam/query_sam_norm
@@ -338,7 +338,7 @@ class ResNetLike(nn.Module):
 			support_set_sam = self.feat_extractor(input2[i])
 			B, C, h, w = support_set_sam.size()
 			support_set_sam = support_set_sam.permute(1, 0, 2, 3)
-			support_set_sam = support_set_sam.contiguous().view(C, -1)
+			support_set_sam = support_set_sam.contiguous().reshape((C, -1))
 			S.append(support_set_sam)
 
 
