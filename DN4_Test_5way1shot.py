@@ -163,6 +163,10 @@ def validate(val_loader, model, criterion, epoch_index, F_txt):
 class AverageMeter(object):
 	"""Computes and stores the average and current value"""
 	def __init__(self):
+		self.count = None
+		self.val = None
+		self.avg = None
+		self.sum = None
 		self.reset()
 
 	def reset(self):

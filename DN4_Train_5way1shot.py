@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Author: Wenbin Li (liwenbin.nju@gmail.com)
 Date: April 9, 2019
@@ -17,26 +14,21 @@ Citation:
 
 
 from __future__ import print_function
+
 import argparse
 import os
-import random
-import shutil
-import numpy as np
+import sys
+import time
+
 import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
-import torchvision.datasets as dset
 import torchvision.transforms as transforms
-import torchvision.utils as vutils
-from torch.autograd import grad
-import time
-from torch import autograd
 from PIL import ImageFile
-import pdb
-import sys
+
 sys.dont_write_bytecode = True
 
 
@@ -66,7 +58,7 @@ parser.add_argument('--testepisodeSize', type=int, default=1, help='one episode 
 parser.add_argument('--epochs', type=int, default=30, help='the total number of training epoch')
 parser.add_argument('--episode_train_num', type=int, default=10000, help='the total number of training episodes')
 parser.add_argument('--episode_val_num', type=int, default=1000, help='the total number of evaluation episodes')
-parser.add_argument('--episode_test_num', type=int, default=1000, help='the total number of testing episodes')
+parser.add_argument('--episode_teswt_num', type=int, default=1000, help='the total number of testing episodes')
 parser.add_argument('--way_num', type=int, default=5, help='the number of way/class')
 parser.add_argument('--shot_num', type=int, default=1, help='the number of shot')
 parser.add_argument('--query_num', type=int, default=15, help='the number of queries')
@@ -270,174 +262,164 @@ def accuracy(output, target, topk=(1,)):
 			correct_k = correct[:k].reshape((-1,)).float().sum(0, keepdim=True)
 			res.append(correct_k.mul_(100.0 / batch_size))
 		return res
+def run():
+	# ======================================== Settings of path ============================================
+	# saving path
+	opt.outf = opt.outf + '_' + opt.data_name + '_' + str(opt.basemodel) + '_' + str(opt.way_num) + 'Way_' + str(
+		opt.shot_num) + 'Shot' + '_K' + str(opt.neighbor_k)
 
+	if not os.path.exists(opt.outf):
+		os.makedirs(opt.outf)
 
+	if torch.cuda.is_available() and not opt.cuda:
+		print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-# ======================================== Settings of path ============================================
-# saving path
-opt.outf = opt.outf+'_'+opt.data_name+'_'+str(opt.basemodel)+'_'+str(opt.way_num)+'Way_'+str(opt.shot_num)+'Shot'+'_K'+str(opt.neighbor_k)
+	# save the opt and results to a txt file
+	txt_save_path = os.path.join(opt.outf, 'opt_resutls.txt')
+	F_txt = open(txt_save_path, 'a+')
+	print(opt)
+	print(opt, file=F_txt)
 
-if not os.path.exists(opt.outf):
-	os.makedirs(opt.outf)
+	# ========================================== Model Config ===============================================
+	ngpu = int(opt.ngpu)
+	global best_prec1, epoch_index
+	best_prec1 = 0
+	epoch_index = 0
 
-if torch.cuda.is_available() and not opt.cuda:
-	print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+	model = DN4Net.define_DN4Net(which_model=opt.basemodel, num_classes=opt.way_num, neighbor_k=opt.neighbor_k,
+								 norm='batch',
+								 init_type='normal', use_gpu=opt.cuda)
 
-# save the opt and results to a txt file
-txt_save_path = os.path.join(opt.outf, 'opt_resutls.txt')
-F_txt = open(txt_save_path, 'a+')
-print(opt)
-print(opt, file=F_txt)
+	# define loss function (criterion) and optimizer
+	criterion = nn.CrossEntropyLoss().cuda()
+	optimizer = optim.Adam(model.parameters(), lr=opt.lr, betas=(opt.beta1, 0.9))
 
+	# optionally resume from a checkpoint
+	if opt.resume:
+		if os.path.isfile(opt.resume):
+			print("=> loading checkpoint '{}'".format(opt.resume))
+			checkpoint = torch.load(opt.resume)
+			epoch_index = checkpoint['epoch_index']
+			best_prec1 = checkpoint['best_prec1']
+			model.load_state_dict(checkpoint['state_dict'])
+			optimizer.load_state_dict(checkpoint['optimizer'])
+			print("=> loaded checkpoint '{}' (epoch {})".format(opt.resume, checkpoint['epoch_index']))
+			print("=> loaded checkpoint '{}' (epoch {})".format(opt.resume, checkpoint['epoch_index']), file=F_txt)
+		else:
+			print("=> no checkpoint found at '{}'".format(opt.resume))
+			print("=> no checkpoint found at '{}'".format(opt.resume), file=F_txt)
 
+	if opt.ngpu > 1:
+		model = nn.DataParallel(model, range(opt.ngpu))
 
-# ========================================== Model Config ===============================================
-ngpu = int(opt.ngpu)
-global best_prec1, epoch_index
-best_prec1 = 0
-epoch_index = 0
+	# print the architecture of the network
+	print(model)
+	print(model, file=F_txt)
 
-model = DN4Net.define_DN4Net(which_model=opt.basemodel, num_classes=opt.way_num, neighbor_k=opt.neighbor_k, norm='batch', 
-	init_type='normal', use_gpu=opt.cuda)
+	# ======================================== Training phase ===============================================
+	print('\n............Start training............\n')
+	start_time = time.time()
 
-# define loss function (criterion) and optimizer
-criterion = nn.CrossEntropyLoss().cuda()
-optimizer = optim.Adam(model.parameters(), lr=opt.lr, betas=(opt.beta1, 0.9))
+	for epoch_item in range(opt.epochs):
+		print('===================================== Epoch %d =====================================' % epoch_item)
+		print('===================================== Epoch %d =====================================' % epoch_item,
+			  file=F_txt)
+		adjust_learning_rate(optimizer, epoch_item)
 
-
-# optionally resume from a checkpoint
-if opt.resume:
-	if os.path.isfile(opt.resume):
-		print("=> loading checkpoint '{}'".format(opt.resume))
-		checkpoint = torch.load(opt.resume)
-		epoch_index = checkpoint['epoch_index']
-		best_prec1 = checkpoint['best_prec1']
-		model.load_state_dict(checkpoint['state_dict'])
-		optimizer.load_state_dict(checkpoint['optimizer'])
-		print("=> loaded checkpoint '{}' (epoch {})".format(opt.resume, checkpoint['epoch_index']))
-		print("=> loaded checkpoint '{}' (epoch {})".format(opt.resume, checkpoint['epoch_index']), file=F_txt)
-	else:
-		print("=> no checkpoint found at '{}'".format(opt.resume))
-		print("=> no checkpoint found at '{}'".format(opt.resume), file=F_txt)
-
-if opt.ngpu > 1:
-	model = nn.DataParallel(model, range(opt.ngpu))
-
-# print the architecture of the network
-print(model) 
-print(model, file=F_txt) 
-
-
-
-
-# ======================================== Training phase ===============================================
-print('\n............Start training............\n')
-start_time = time.time()
-
-
-for epoch_item in range(opt.epochs):
-	print('===================================== Epoch %d =====================================' %epoch_item)
-	print('===================================== Epoch %d =====================================' %epoch_item, file=F_txt)
-	adjust_learning_rate(optimizer, epoch_item) 
-	
-
-	# ======================================= Folder of Datasets =======================================
-	# image transform & normalization
-	ImgTransform = transforms.Compose([
+		# ======================================= Folder of Datasets =======================================
+		# image transform & normalization
+		ImgTransform = transforms.Compose([
 			transforms.Resize((opt.imageSize, opt.imageSize)),
 			transforms.ToTensor(),
 			transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-			])
+		])
 
-	trainset = Imagefolder_csv(
-		data_dir=opt.dataset_dir, mode=opt.mode, image_size=opt.imageSize, transform=ImgTransform,
-		episode_num=opt.episode_train_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
-	)
-	valset = Imagefolder_csv(
-		data_dir=opt.dataset_dir, mode='val', image_size=opt.imageSize, transform=ImgTransform,
-		episode_num=opt.episode_val_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
-	)
-	testset = Imagefolder_csv(
-		data_dir=opt.dataset_dir, mode='test', image_size=opt.imageSize, transform=ImgTransform,
-		episode_num=opt.episode_test_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
-	)
-
-	print('Trainset: %d' %len(trainset))
-	print('Valset: %d' %len(valset))
-	print('Testset: %d' %len(testset))
-	print('Trainset: %d' %len(trainset), file=F_txt)
-	print('Valset: %d' %len(valset), file=F_txt)
-	print('Testset: %d' %len(testset), file=F_txt)
-
-
-
-	# ========================================== Load Datasets =========================================
-	train_loader = torch.utils.data.DataLoader(
-		trainset, batch_size=opt.episodeSize, shuffle=True, 
-		num_workers=int(opt.workers), drop_last=True, pin_memory=True
+		trainset = Imagefolder_csv(
+			data_dir=opt.dataset_dir, mode=opt.mode, image_size=opt.imageSize, transform=ImgTransform,
+			episode_num=opt.episode_train_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
 		)
-	val_loader = torch.utils.data.DataLoader(
-		valset, batch_size=opt.testepisodeSize, shuffle=True, 
-		num_workers=int(opt.workers), drop_last=True, pin_memory=True
-		) 
-	test_loader = torch.utils.data.DataLoader(
-		testset, batch_size=opt.testepisodeSize, shuffle=True, 
-		num_workers=int(opt.workers), drop_last=True, pin_memory=True
-		) 
+		valset = Imagefolder_csv(
+			data_dir=opt.dataset_dir, mode='val', image_size=opt.imageSize, transform=ImgTransform,
+			episode_num=opt.episode_val_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
+		)
+		testset = Imagefolder_csv(
+			data_dir=opt.dataset_dir, mode='test', image_size=opt.imageSize, transform=ImgTransform,
+			episode_num=opt.episode_test_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
+		)
 
+		print('Trainset: %d' % len(trainset))
+		print('Valset: %d' % len(valset))
+		print('Testset: %d' % len(testset))
+		print('Trainset: %d' % len(trainset), file=F_txt)
+		print('Valset: %d' % len(valset), file=F_txt)
+		print('Testset: %d' % len(testset), file=F_txt)
 
-	# ============================================ Training ===========================================
-	# Fix the parameters of Batch Normalization after 10000 episodes (1 epoch)
-	if epoch_item < 1:
-		model.train()
-	else:
-		model.eval()
+		# ========================================== Load Datasets =========================================
+		train_loader = torch.utils.data.DataLoader(
+			trainset, batch_size=opt.episodeSize, shuffle=True,
+			num_workers=int(opt.workers), drop_last=True, pin_memory=True
+		)
+		val_loader = torch.utils.data.DataLoader(
+			valset, batch_size=opt.testepisodeSize, shuffle=True,
+			num_workers=int(opt.workers), drop_last=True, pin_memory=True
+		)
+		test_loader = torch.utils.data.DataLoader(
+			testset, batch_size=opt.testepisodeSize, shuffle=True,
+			num_workers=int(opt.workers), drop_last=True, pin_memory=True
+		)
 
-	# Train for 10000 episodes in each epoch
-	train(train_loader, model, criterion, optimizer, epoch_item, F_txt)
+		# ============================================ Training ===========================================
+		# Fix the parameters of Batch Normalization after 10000 episodes (1 epoch)
+		if epoch_item < 1:
+			model.train()
+		else:
+			model.eval()
 
+		# Train for 10000 episodes in each epoch
+		train(train_loader, model, criterion, optimizer, epoch_item, F_txt)
 
-	# =========================================== Evaluation ==========================================
-	print('============ Validation on the val set ============')
-	print('============ validation on the val set ============', file=F_txt)
-	prec1, _ = validate(val_loader, model, criterion, epoch_item, best_prec1, F_txt)
+		# =========================================== Evaluation ==========================================
+		print('============ Validation on the val set ============')
+		print('============ validation on the val set ============', file=F_txt)
+		prec1, _ = validate(val_loader, model, criterion, epoch_item, best_prec1, F_txt)
 
+		# record the best prec@1 and save checkpoint
+		is_best = prec1 > best_prec1
+		best_prec1 = max(prec1, best_prec1)
 
-	# record the best prec@1 and save checkpoint
-	is_best = prec1 > best_prec1
-	best_prec1 = max(prec1, best_prec1)
+		# save the checkpoint
+		if is_best:
+			save_checkpoint(
+				{
+					'epoch_index': epoch_item,
+					'arch': opt.basemodel,
+					'state_dict': model.state_dict(),
+					'best_prec1': best_prec1,
+					'optimizer': optimizer.state_dict(),
+				}, os.path.join(opt.outf, 'model_best.pth.tar'))
 
-	# save the checkpoint
-	if is_best:
-		save_checkpoint(
-			{
-				'epoch_index': epoch_item,
-				'arch': opt.basemodel,
-				'state_dict': model.state_dict(),
-				'best_prec1': best_prec1,
-				'optimizer' : optimizer.state_dict(),
-			}, os.path.join(opt.outf, 'model_best.pth.tar'))
+		if epoch_item % 10 == 0:
+			filename = os.path.join(opt.outf, 'epoch_%d.pth.tar' % epoch_item)
+			save_checkpoint(
+				{
+					'epoch_index': epoch_item,
+					'arch': opt.basemodel,
+					'state_dict': model.state_dict(),
+					'best_prec1': best_prec1,
+					'optimizer': optimizer.state_dict(),
+				}, filename)
 
+		# Testing Prase
+		print('============ Testing on the test set ============')
+		print('============ Testing on the test set ============', file=F_txt)
+		prec1, _ = validate(test_loader, model, criterion, epoch_item, best_prec1, F_txt)
 
-	if epoch_item % 10 == 0:
-		filename = os.path.join(opt.outf, 'epoch_%d.pth.tar' %epoch_item)
-		save_checkpoint(
-		{
-			'epoch_index': epoch_item,
-			'arch': opt.basemodel,
-			'state_dict': model.state_dict(),
-			'best_prec1': best_prec1,
-			'optimizer' : optimizer.state_dict(),
-		}, filename)
+	F_txt.close()
+	print('............Training is end............')
 
-	
-	# Testing Prase
-	print('============ Testing on the test set ============')
-	print('============ Testing on the test set ============', file=F_txt)
-	prec1, _ = validate(test_loader, model, criterion, epoch_item, best_prec1, F_txt)
-
-
-F_txt.close()
-print('............Training is end............')
 
 # ============================================ Training End ==============================================================
+
+
+if __name__ == '__main__':
+	run()
