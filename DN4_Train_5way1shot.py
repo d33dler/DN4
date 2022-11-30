@@ -58,7 +58,7 @@ parser.add_argument('--testepisodeSize', type=int, default=1, help='one episode 
 parser.add_argument('--epochs', type=int, default=30, help='the total number of training epoch')
 parser.add_argument('--episode_train_num', type=int, default=10000, help='the total number of training episodes')
 parser.add_argument('--episode_val_num', type=int, default=1000, help='the total number of evaluation episodes')
-parser.add_argument('--episode_teswt_num', type=int, default=1000, help='the total number of testing episodes')
+parser.add_argument('--episode_test_num', type=int, default=1000, help='the total number of testing episodes')
 parser.add_argument('--way_num', type=int, default=5, help='the number of way/class')
 parser.add_argument('--shot_num', type=int, default=1, help='the number of shot')
 parser.add_argument('--query_num', type=int, default=15, help='the number of queries')
