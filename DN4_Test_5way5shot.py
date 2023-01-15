@@ -41,7 +41,7 @@ import pdb
 
 
 # ============================ Data & Networks =====================================
-from dataset.datasets_csv import Imagefolder_csv
+from dataset.datasets_csv import CSVLoader
 import models.network as DN4Net
 # ==================================================================================
 
@@ -284,7 +284,7 @@ for r in range(repeat_num):
 			transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 			])
 
-	testset = Imagefolder_csv(
+	testset = CSVLoader(
 		data_dir=opt.dataset_dir, mode=opt.mode, image_size=opt.imageSize, transform=ImgTransform,
 		episode_num=opt.episode_test_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
 	)

@@ -6,7 +6,7 @@ Author: Wenbin Li (liwenbin.nju@gmail.com)
 Date: April 9, 2019
 Version: V0
 
-Citation: 
+Citation:
 @inproceedings{li2019DN4,
   title={Revisiting Local Descriptor based Image-to-Class Measure for Few-shot Learning},
   author={Li, Wenbin and Wang, Lei and Xu, Jinglin and Huo, Jing and Gao Yang and Luo, Jiebo},
@@ -41,7 +41,7 @@ import pdb
 
 
 # ============================ Data & Networks =====================================
-from dataset.datasets_csv import Imagefolder_csv
+from dataset.datasets_csv import CSVLoader
 import models.network as DN4Net
 # ==================================================================================
 
@@ -94,7 +94,7 @@ def validate(val_loader, model, criterion, epoch_index, F_txt):
 	batch_time = AverageMeter()
 	losses = AverageMeter()
 	top1 = AverageMeter()
-  
+
 
 	# switch to evaluate mode
 	model.eval()
@@ -121,7 +121,7 @@ def validate(val_loader, model, criterion, epoch_index, F_txt):
 		target = torch.cat(query_targets, 0)
 		target = target.cuda()
 
-		# Calculate the output 
+		# Calculate the output
 		output = model(input_var1, input_var2)
 		loss = criterion(output, target)
 
@@ -153,7 +153,7 @@ def validate(val_loader, model, criterion, epoch_index, F_txt):
 				'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
 					epoch_index, episode_index, len(val_loader), batch_time=batch_time, loss=losses, top1=top1), file=F_txt)
 
-		
+
 	print(' * Prec@1 {top1.avg:.3f} Best_prec1 {best_prec1:.3f}'.format(top1=top1, best_prec1=best_prec1))
 	print(' * Prec@1 {top1.avg:.3f} Best_prec1 {best_prec1:.3f}'.format(top1=top1, best_prec1=best_prec1), file=F_txt)
 
@@ -233,7 +233,7 @@ global best_prec1, epoch_index
 best_prec1 = 0
 epoch_index = 0
 
-model = DN4Net.define_DN4Net(which_model=opt.basemodel, num_classes=opt.way_num, neighbor_k=opt.neighbor_k, norm='batch', 
+model = DN4Net.define_DN4Net(which_model=opt.basemodel, num_classes=opt.way_num, neighbor_k=opt.neighbor_k, norm='batch',
 	init_type='normal', use_gpu=opt.cuda)
 
 # define loss function (criterion) and optimizer
@@ -260,8 +260,8 @@ if opt.ngpu > 1:
 	model = nn.DataParallel(model, range(opt.ngpu))
 
 # print the architecture of the network
-print(model) 
-print(model, file=F_txt) 
+print(model)
+print(model, file=F_txt)
 
 
 
@@ -280,7 +280,7 @@ for r in range(repeat_num):
 	print('===================================== Round %d =====================================' %r, file=F_txt)
 
 	# ======================================= Folder of Datasets =======================================
-	
+
 	# image transform & normalization
 	ImgTransform = transforms.Compose([
 			transforms.Resize((opt.imageSize, opt.imageSize)),
@@ -288,7 +288,7 @@ for r in range(repeat_num):
 			transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 			])
 
-	testset = Imagefolder_csv(
+	testset = CSVLoader(
 		data_dir=opt.dataset_dir, mode=opt.mode, image_size=opt.imageSize, transform=ImgTransform,
 		episode_num=opt.episode_test_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
 	)
@@ -298,9 +298,9 @@ for r in range(repeat_num):
 
 	# ========================================== Load Datasets =========================================
 	test_loader = torch.utils.data.DataLoader(
-		testset, batch_size=opt.testepisodeSize, shuffle=True, 
+		testset, batch_size=opt.testepisodeSize, shuffle=True,
 		num_workers=int(opt.workers), drop_last=True, pin_memory=True
-		) 
+		)
 
 
 	# =========================================== Evaluation ==========================================

@@ -41,7 +41,7 @@ sys.dont_write_bytecode = True
 
 
 # ============================ Data & Networks =====================================
-from dataset.datasets_csv import Imagefolder_csv
+from dataset.datasets_csv import CSVLoader
 import models.network as DN4Net
 # ==================================================================================
 
@@ -358,15 +358,15 @@ for epoch_item in range(opt.epochs):
 		transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 		])
 
-	trainset = Imagefolder_csv(
+	trainset = CSVLoader(
 		data_dir=opt.dataset_dir, mode=opt.mode, image_size=opt.imageSize, transform=ImgTransform_DA,
 		episode_num=opt.episode_train_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
 	)
-	valset = Imagefolder_csv(
+	valset = CSVLoader(
 		data_dir=opt.dataset_dir, mode='val', image_size=opt.imageSize, transform=ImgTransform,
 		episode_num=opt.episode_val_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
 	)
-	testset = Imagefolder_csv(
+	testset = CSVLoader(
 		data_dir=opt.dataset_dir, mode='test', image_size=opt.imageSize, transform=ImgTransform,
 		episode_num=opt.episode_test_num, way_num=opt.way_num, shot_num=opt.shot_num, query_num=opt.query_num
 	)
